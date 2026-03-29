@@ -1,0 +1,35 @@
+{
+  "id": "1680000001",
+  "timestamp": "2026-03-29T12:00:00.000Z",
+  "rule": {
+    "id": "5710",
+    "level": 10,
+    "description": "SSH brute force attack detected",
+    "groups": ["authentication_failed", "sshd", "brute_force"],
+    "mitre": {
+      "id": ["T1110"],
+      "tactic": ["Credential Access"],
+      "technique": ["Brute Force"]
+    }
+  },
+  "agent": {
+    "id": "001",
+    "name": "prod-web-01",
+    "ip": "10.0.1.10"
+  },
+  "manager": {
+    "name": "wazuh-manager"
+  },
+  "data": {
+    "srcip": "185.220.101.45",
+    "dstip": "10.0.1.10",
+    "srcport": "52341",
+    "dstport": "22",
+    "proto": "tcp"
+  },
+  "full_log": "Mar 29 12:00:00 prod-web-01 sshd[9123]: Failed password for root from 185.220.101.45 port 52341 ssh2",
+  "location": "/var/log/auth.log",
+  "decoder": {
+    "name": "sshd"
+  }
+}
