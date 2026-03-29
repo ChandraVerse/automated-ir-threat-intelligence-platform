@@ -142,7 +142,7 @@ def _level_to_severity(level: int) -> str:
 def _make_alert_id(alert: dict) -> str:
     """Generate a stable alert ID from rule + agent + timestamp."""
     raw = f"{alert.get('rule', {}).get('id')}{alert.get('agent', {}).get('name')}{alert.get('timestamp')}"
-    return hashlib.sha1(raw.encode()).hexdigest()[:16].upper()
+    return hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
 
 
 def normalise_alert(raw: dict) -> Optional[NormalisedAlert]:
