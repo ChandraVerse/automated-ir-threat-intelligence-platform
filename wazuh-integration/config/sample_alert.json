@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-03-29T13:45:22.441+0000",
+  "rule": {
+    "id": "87103",
+    "description": "Mimikatz credential dumping detected via LSASS memory access",
+    "level": 14,
+    "groups": ["windows", "sysmon", "credential_access"],
+    "mitre": {
+      "id": ["T1003.001"],
+      "tactic": ["Credential Access"]
+    }
+  },
+  "agent": {
+    "id": "003",
+    "name": "DC01",
+    "ip": "10.10.10.10"
+  },
+  "manager": {
+    "name": "wazuh-manager"
+  },
+  "data": {
+    "srcip": "185.220.101.45",
+    "win": {
+      "eventdata": {
+        "sourceIp": "185.220.101.45",
+        "targetImage": "C:\\Windows\\system32\\lsass.exe",
+        "grantedAccess": "0x1410",
+        "sourceImage": "C:\\Users\\Administrator\\Desktop\\mimikatz.exe"
+      }
+    },
+    "sha256": "61c0810a23580cf492a6ba4f7654566108331e7a4134c968c2d6a05261b2d8a1"
+  },
+  "location": "EventChannel",
+  "full_log": "EventID=10 SourceImage=C:\\Users\\Administrator\\Desktop\\mimikatz.exe TargetImage=C:\\Windows\\system32\\lsass.exe GrantedAccess=0x1410 SourceIP=185.220.101.45"
+}

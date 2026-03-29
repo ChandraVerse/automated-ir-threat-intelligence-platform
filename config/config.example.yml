@@ -1,0 +1,62 @@
+# ──────────────────────────────────────────────────────────────
+# Automated IR & Threat Intelligence Platform — Configuration
+# Copy this file to config.yml and fill in your values.
+# NEVER commit config.yml — it's in .gitignore.
+# ──────────────────────────────────────────────────────────────
+
+wazuh:
+  host: "https://localhost:55000"
+  user: "wazuh"
+  password: "YOUR_WAZUH_PASSWORD"
+  verify_ssl: false
+  poll_interval_seconds: 60
+  min_alert_level: 7          # 1–15 (7 = medium, 10 = high, 13 = critical)
+
+threat_intel:
+  virustotal_api_key: "YOUR_VT_API_KEY"
+  abuseipdb_api_key:  "YOUR_ABUSEIPDB_API_KEY"
+  shodan_api_key:     "YOUR_SHODAN_API_KEY"
+
+cache:
+  db_path: "ioc-pipeline/cache/ioc_cache.db"
+  ttl_seconds: 86400          # 24 hours
+
+pipeline:
+  rate_limit_delay: 0.5       # seconds between API calls per source
+  max_iocs_per_alert: 10
+
+soar:
+  enabled: true
+  slack_webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  jira_url: "https://yourorg.atlassian.net"
+  jira_project: "SOC"
+  jira_token: "YOUR_JIRA_API_TOKEN"
+  jira_email: "you@yourorg.com"
+  auto_block_threshold: "MALICIOUS"   # MALICIOUS | SUSPICIOUS | none
+  auto_isolate: false                 # true = auto-isolate host via Wazuh AR
+
+reports:
+  output_dir: "report-generator/output"
+  company_name: "Detection Engineering Lab"
+  analyst_name: "Chandra Sekhar Chakraborty"
+  logo_path: ""
+
+grafana:
+  host: "http://localhost:3000"
+  api_key: "YOUR_GRAFANA_API_KEY"
+  dashboard_uid: "ir-platform-main"
+
+memory_analysis:
+  volatility_path: "vol"             # or full path to vol.py
+  output_dir: "memory-analysis/output"
+  plugins:
+    - pslist
+    - netscan
+    - dlllist
+    - malfind
+
+logging:
+  level: "INFO"                       # DEBUG | INFO | WARNING | ERROR
+  file: "logs/platform.log"
+  max_bytes: 10485760
+  backup_count: 5
