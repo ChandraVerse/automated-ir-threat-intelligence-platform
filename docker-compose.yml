@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  # -------------------------------------------------------
+  # IR Pipeline Application
+  # -------------------------------------------------------
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ir-pipeline
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config/config.yml:/app/config/config.yml:ro
+      - ./report-generator/output:/app/report-generator/output
+      - ./memory-analysis/samples:/app/memory-analysis/samples
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python", "-m", "pipeline.main", "--mode", "webhook", "--port", "8080"]
+    depends_on:
+      - prometheus
+      - grafana
+    networks:
+      - ir-net
+
+  # -------------------------------------------------------
+  # Prometheus — Metrics backend
+  # -------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: ir-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - ir-net
+
+  # -------------------------------------------------------
+  # Grafana — Dashboard
+  # -------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: ir-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - ir-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  ir-net:
+    driver: bridge
