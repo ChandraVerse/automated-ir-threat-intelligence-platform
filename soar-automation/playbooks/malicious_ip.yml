@@ -1,0 +1,57 @@
+# SOAR Playbook: Malicious IP Response
+# Triggered when verdict_engine scores an IP as MALICIOUS (>=70)
+name: malicious_ip_response
+version: "1.0"
+trigger:
+  verdict: MALICIOUS
+  ioc_type: ip
+
+steps:
+  - id: block_ip
+    action: firewall.block
+    params:
+      target: "{{ ioc.value }}"
+      direction: both
+      duration_hours: 72
+      comment: "Auto-blocked by IR Platform — score {{ ioc.score }}"
+
+  - id: isolate_host
+    action: edr.isolate
+    depends_on: [block_ip]
+    condition: "{{ ioc.source_host is not none }}"
+    params:
+      host: "{{ ioc.source_host }}"
+      reason: "Malicious IP contact detected"
+
+  - id: create_ticket
+    action: jira.create_ticket
+    depends_on: [block_ip]
+    params:
+      project: SEC
+      issuetype: Incident
+      summary: "[AUTO] Malicious IP {{ ioc.value }} — Score {{ ioc.score }}"
+      description: |
+        **IOC:** {{ ioc.value }}
+        **Score:** {{ ioc.score }}
+        **VirusTotal detections:** {{ enrichment.virustotal.positives }}
+        **AbuseIPDB confidence:** {{ enrichment.abuseipdb.abuse_confidence_score }}
+        **Shodan ports:** {{ enrichment.shodan.open_ports }}
+        **Wazuh alert:** {{ alert.id }} — {{ alert.rule.description }}
+      priority: High
+      labels: [automated, threat-intel, malicious-ip]
+
+  - id: notify_soc
+    action: slack.notify
+    depends_on: [create_ticket]
+    params:
+      channel: "#soc-alerts"
+      message: |
+        🚨 *MALICIOUS IP BLOCKED* — `{{ ioc.value }}`
+        Score: `{{ ioc.score }}/100` | Ticket: `{{ steps.create_ticket.key }}`
+        VT: {{ enrichment.virustotal.positives }} detections | AbuseIPDB: {{ enrichment.abuseipdb.abuse_confidence_score }}%
+
+on_failure:
+  - action: slack.notify
+    params:
+      channel: "#soc-alerts"
+      message: "⚠️ Playbook *malicious_ip_response* failed at step {{ failed_step }}: {{ error }}"
