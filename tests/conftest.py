@@ -2,9 +2,26 @@
 pytest configuration and shared fixtures.
 """
 
+import sys
 import pytest
 import json
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Ensure hyphenated package dirs are importable as Python modules
+# ---------------------------------------------------------------------------
+_ROOT = Path(__file__).resolve().parents[1]
+for _dir in [
+    _ROOT,
+    _ROOT / "wazuh-integration",
+    _ROOT / "ioc-pipeline",
+    _ROOT / "soar-automation",
+    _ROOT / "report-generator",
+    _ROOT / "memory-analysis",
+]:
+    _dir_str = str(_dir)
+    if _dir_str not in sys.path:
+        sys.path.insert(0, _dir_str)
 
 
 @pytest.fixture(scope="session")

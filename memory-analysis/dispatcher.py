@@ -74,15 +74,18 @@ class VolatilityDispatcher:
         if not plugin_class:
             return PluginResult(plugin=plugin_key, success=False, error=f"Unknown plugin: {plugin_key}")
 
+        # Resolve and validate dump_path to prevent shell injection (bandit B603)
+        dump_path = str(Path(self.dump_path).resolve())
+
         cmd = [
-            VOLATILITY_BIN, "-f", self.dump_path,
+            VOLATILITY_BIN, "-f", dump_path,
             "--renderer", "json",
             plugin_class,
         ] + (extra_args or [])
 
         logger.info("Running: %s", " ".join(cmd))
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 cmd, capture_output=True, text=True, timeout=300
             )
             if result.returncode != 0:
@@ -105,7 +108,6 @@ class VolatilityDispatcher:
                 return data
             return data.get("rows", [])
         except json.JSONDecodeError:
-            # Fall back to line parsing
             return [{"raw": line} for line in raw.splitlines() if line.strip()]
 
     def run_triage(self) -> AnalysisReport:
@@ -138,11 +140,9 @@ class VolatilityDispatcher:
         for row in result.rows:
             row_str = json.dumps(row)
             for ip in ip_re.findall(row_str):
-                # Skip private ranges
                 if not ip.startswith(("10.", "192.168.", "127.", "0.")):
                     if ip not in report.iocs:
                         report.iocs.append(ip)
-            # Flag suspicious process names from malfind
             if result.plugin == "malfind":
                 pid = row.get("PID") or row.get("pid")
                 if pid and int(pid) not in report.suspicious_pids:

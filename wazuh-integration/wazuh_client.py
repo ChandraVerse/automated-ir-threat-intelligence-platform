@@ -23,7 +23,7 @@ from typing import Callable, Optional
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # nosec B501
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +43,13 @@ class WazuhClient:
     ALERTS_INDEX   = "/wazuh-alerts-*/_search"
     AGENTS_ENDPOINT = "/agents"
 
-    def __init__(self, host: str, user: str, password: str, verify_ssl: bool = False):
+    def __init__(self, host: str, user: str, password: str, verify_ssl: bool = True):
         """
         Args:
             host       : Wazuh Manager URL e.g. https://localhost:55000
             user       : API username (default: wazuh)
             password   : API password
-            verify_ssl : Set True in production with valid certs
+            verify_ssl : Set False only in local dev with self-signed certs
         """
         self.base_url   = host.rstrip("/")
         self.user       = user
@@ -58,7 +58,7 @@ class WazuhClient:
         self._token: Optional[str] = None
         self._token_expiry: float = 0.0
         self.session = requests.Session()
-        self.session.verify = verify_ssl
+        self.session.verify = verify_ssl  # nosec B501
 
     # ── Authentication ────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ class WazuhClient:
 
         Args:
             since_minutes : Look back window in minutes
-            min_level     : Minimum Wazuh alert level (1–15)
+            min_level     : Minimum Wazuh alert level (1-15)
             limit         : Max alerts to return per call
 
         Returns:
@@ -212,7 +212,7 @@ class WazuhClient:
                 )
                 if alerts:
                     callback(alerts)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 log.error("Poll iteration error: %s", exc)
             time.sleep(interval_seconds)
 
@@ -242,7 +242,7 @@ class WazuhWebhookHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b'{"status": "ok"}')
-        except (json.JSONDecodeError, Exception) as exc:
+        except Exception as exc:  # noqa: BLE001
             log.error("Webhook parse error: %s", exc)
             self.send_response(400)
             self.end_headers()
