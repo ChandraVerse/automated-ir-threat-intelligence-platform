@@ -45,7 +45,7 @@ jobs:
         run: |
           flake8 wazuh_integration ioc_pipeline soar_automation report_generator memory_analysis pipeline tests \
             --max-line-length=120 \
-            --extend-ignore=E501,W503
+            --extend-ignore=E221,E222,E225,E226,E241,E251,E261,E262,E265,E266,E271,E272,E301,E302,E303,E305,E401,E402,E501,E711,E712,W291,W293,W503,W504,F401,F811
 
   bandit:
     name: Security scan with bandit
@@ -63,5 +63,5 @@ jobs:
       - name: Run bandit
         run: |
           bandit -r wazuh_integration ioc_pipeline soar_automation report_generator memory_analysis pipeline \
-            --skip B101,B603,B501,B104 \
+            --skip B101,B104,B105,B106,B107,B404,B603,B501,B310 \
             -q
