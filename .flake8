@@ -1,5 +1,8 @@
 [flake8]
 max-line-length = 120
+extend-ignore = E501, W503
+per-file-ignores =
+    tests/*: E302, E303
 exclude =
     .git,
     __pycache__,
@@ -10,4 +13,7 @@ exclude =
     soar-automation,
     report-generator,
     memory-analysis,
-    docs
+    docs,
+    grafana,
+    config,
+    samples
