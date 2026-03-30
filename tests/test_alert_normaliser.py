@@ -1,15 +1,10 @@
 """
-Unit tests for wazuh-integration/parsers/alert_normaliser.py
+Unit tests for wazuh_integration/parsers/alert_normaliser.py
 """
-
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "wazuh-integration"))
-
 import pytest
 import json
-from parsers.alert_normaliser import normalise_alert, NormalisedAlert
+from pathlib import Path
+from wazuh_integration.parsers.alert_normaliser import normalise_alert, NormalisedAlert
 
 
 @pytest.fixture
@@ -21,13 +16,11 @@ def sample_alert():
 class TestAlertNormaliser:
     def test_normalise_returns_normalised_alert(self, sample_alert):
         result = normalise_alert(sample_alert)
-        assert result is not None
         assert isinstance(result, NormalisedAlert)
 
     def test_normalised_has_alert_id(self, sample_alert):
         result = normalise_alert(sample_alert)
-        assert result.alert_id is not None
-        assert len(result.alert_id) > 0
+        assert result.alert_id and len(result.alert_id) > 0
 
     def test_severity_is_string(self, sample_alert):
         result = normalise_alert(sample_alert)
@@ -46,12 +39,10 @@ class TestAlertNormaliser:
         assert len(result.rule_name) > 0
 
     def test_malformed_alert_returns_none(self):
-        result = normalise_alert(None)
-        assert result is None
+        assert normalise_alert(None) is None
 
     def test_empty_alert_returns_normalised_alert(self):
         result = normalise_alert({})
-        assert result is not None
         assert isinstance(result, NormalisedAlert)
 
     def test_src_ip_extracted_as_ioc(self, sample_alert):

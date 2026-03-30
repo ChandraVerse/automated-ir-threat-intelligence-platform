@@ -3,15 +3,11 @@ max-line-length = 120
 exclude =
     .git,
     __pycache__,
-    docs/source/conf.py,
-    old,
-    build,
-    dist,
     venv,
     .venv,
-    memory-analysis/samples
-per-file-ignores =
-    # Allow broad except Exception in pipeline entrypoints and webhook handlers
-    pipeline/main.py: E722
-    wazuh-integration/wazuh_client.py: E722
-    tests/conftest.py: E402
+    wazuh-integration,
+    ioc-pipeline,
+    soar-automation,
+    report-generator,
+    memory-analysis,
+    docs
