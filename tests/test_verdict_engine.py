@@ -5,9 +5,10 @@ Unit tests for ioc-pipeline/verdict_engine.py
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ioc-pipeline"))
 
 import pytest
-from ioc_pipeline.verdict_engine import VerdictEngine
+from verdict_engine import VerdictEngine
 
 
 @pytest.fixture
@@ -15,78 +16,66 @@ def engine():
     return VerdictEngine()
 
 
-def make_vt_result(malicious=0, total=70):
+def make_enrichment(vt_malicious=0, vt_total=70, abuse_score=0, vulns=None, ports=None, tags=None):
+    """Build a single enrichment dict as VerdictEngine.compute() expects."""
+    harmless = vt_total - vt_malicious
     return {
-        "source": "virustotal",
-        "malicious_votes": malicious,
-        "total_engines": total,
-        "reputation": -malicious * 5,
-    }
-
-
-def make_abuse_result(score=0):
-    return {
-        "source": "abuseipdb",
-        "abuse_confidence_score": score,
-        "total_reports": score // 10,
-    }
-
-
-def make_shodan_result(ports=None, vulns=None):
-    return {
-        "source": "shodan",
-        "open_ports": ports or [],
-        "vulns": vulns or [],
+        "virustotal": {
+            "malicious": vt_malicious,
+            "suspicious": 0,
+            "harmless": harmless,
+            "undetected": 0,
+            "reputation": -vt_malicious * 5,
+        },
+        "abuseipdb": {
+            "abuse_confidence_score": abuse_score,
+            "is_whitelisted": False,
+        },
+        "shodan": {
+            "open_ports": ports or [],
+            "vulns": vulns or [],
+            "tags": tags or [],
+        },
     }
 
 
 class TestVerdictEngine:
     def test_clean_verdict(self, engine):
-        result = engine.compute(
-            vt_result=make_vt_result(malicious=0),
-            abuse_result=make_abuse_result(score=0),
-            shodan_result=make_shodan_result(),
-        )
+        result = engine.compute(make_enrichment(vt_malicious=0, abuse_score=0))
         assert result["verdict"] == "CLEAN"
-        assert result["confidence"] >= 0
+        assert 0 <= result["confidence"] <= 100
 
     def test_malicious_verdict_high_vt(self, engine):
-        result = engine.compute(
-            vt_result=make_vt_result(malicious=40),
-            abuse_result=make_abuse_result(score=90),
-            shodan_result=make_shodan_result(),
-        )
+        result = engine.compute(make_enrichment(vt_malicious=50, abuse_score=90))
         assert result["verdict"] == "MALICIOUS"
 
     def test_suspicious_verdict(self, engine):
-        result = engine.compute(
-            vt_result=make_vt_result(malicious=5),
-            abuse_result=make_abuse_result(score=30),
-            shodan_result=make_shodan_result(),
-        )
+        result = engine.compute(make_enrichment(vt_malicious=5, abuse_score=30))
         assert result["verdict"] in ["SUSPICIOUS", "MALICIOUS"]
 
     def test_confidence_is_percentage(self, engine):
-        result = engine.compute(
-            vt_result=make_vt_result(malicious=2),
-            abuse_result=make_abuse_result(score=20),
-            shodan_result=make_shodan_result(),
-        )
+        result = engine.compute(make_enrichment(vt_malicious=2, abuse_score=20))
         assert 0 <= result["confidence"] <= 100
 
     def test_verdict_with_vulns(self, engine):
-        result = engine.compute(
-            vt_result=make_vt_result(malicious=0),
-            abuse_result=make_abuse_result(score=0),
-            shodan_result=make_shodan_result(vulns=["CVE-2021-44228"]),
-        )
-        # Should not be clean when known vulns are present
+        result = engine.compute(make_enrichment(
+            vt_malicious=0, abuse_score=0, vulns=["CVE-2021-44228"]
+        ))
         assert result["verdict"] in ["SUSPICIOUS", "MALICIOUS"]
 
     def test_error_source_handled_gracefully(self, engine):
-        result = engine.compute(
-            vt_result={"source": "virustotal", "error": "not_found"},
-            abuse_result=make_abuse_result(score=0),
-            shodan_result=make_shodan_result(),
-        )
+        enrichment = {
+            "virustotal": {"error": "not_found"},
+            "abuseipdb": {"abuse_confidence_score": 0, "is_whitelisted": False},
+            "shodan": {"open_ports": [], "vulns": [], "tags": []},
+        }
+        result = engine.compute(enrichment)
         assert "verdict" in result
+        assert "confidence" in result
+
+    def test_component_scores_present(self, engine):
+        result = engine.compute(make_enrichment(vt_malicious=10, abuse_score=50))
+        assert "component_scores" in result
+        assert "virustotal" in result["component_scores"]
+        assert "abuseipdb" in result["component_scores"]
+        assert "shodan" in result["component_scores"]

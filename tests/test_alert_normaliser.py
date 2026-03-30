@@ -5,15 +5,11 @@ Unit tests for wazuh-integration/parsers/alert_normaliser.py
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "wazuh-integration"))
 
 import pytest
 import json
-from wazuh_integration.parsers.alert_normaliser import AlertNormaliser
-
-
-@pytest.fixture
-def normaliser():
-    return AlertNormaliser()
+from parsers.alert_normaliser import normalise_alert, NormalisedAlert
 
 
 @pytest.fixture
@@ -23,32 +19,46 @@ def sample_alert():
 
 
 class TestAlertNormaliser:
-    def test_normalise_returns_dict(self, normaliser, sample_alert):
-        result = normaliser.normalise(sample_alert)
-        assert isinstance(result, dict)
+    def test_normalise_returns_normalised_alert(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result is not None
+        assert isinstance(result, NormalisedAlert)
 
-    def test_normalised_has_required_fields(self, normaliser, sample_alert):
-        result = normaliser.normalise(sample_alert)
-        required = ["id", "timestamp", "severity", "description", "src_ip", "agent"]
-        for field in required:
-            assert field in result, f"Missing field: {field}"
+    def test_normalised_has_alert_id(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result.alert_id is not None
+        assert len(result.alert_id) > 0
 
-    def test_severity_is_integer(self, normaliser, sample_alert):
-        result = normaliser.normalise(sample_alert)
-        assert isinstance(result["severity"], int)
+    def test_severity_is_string(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result.severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 
-    def test_src_ip_extracted(self, normaliser, sample_alert):
-        result = normaliser.normalise(sample_alert)
-        assert result["src_ip"] == "185.220.101.45"
+    def test_rule_level_extracted(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result.rule_level == 10
 
-    def test_description_populated(self, normaliser, sample_alert):
-        result = normaliser.normalise(sample_alert)
-        assert len(result["description"]) > 0
+    def test_agent_name_extracted(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result.agent_name == "prod-web-01"
 
-    def test_malformed_alert_raises(self, normaliser):
-        with pytest.raises(Exception):
-            normaliser.normalise(None)
+    def test_description_populated(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert len(result.rule_name) > 0
 
-    def test_empty_alert_returns_defaults(self, normaliser):
-        result = normaliser.normalise({})
-        assert "severity" in result
+    def test_malformed_alert_returns_none(self):
+        result = normalise_alert(None)
+        assert result is None
+
+    def test_empty_alert_returns_normalised_alert(self):
+        result = normalise_alert({})
+        assert result is not None
+        assert isinstance(result, NormalisedAlert)
+
+    def test_src_ip_extracted_as_ioc(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        ioc_values = [ioc.value for ioc in result.iocs]
+        assert "185.220.101.45" in ioc_values
+
+    def test_source_is_wazuh(self, sample_alert):
+        result = normalise_alert(sample_alert)
+        assert result.source == "wazuh"

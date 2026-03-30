@@ -5,46 +5,65 @@ Unit tests for soar-automation/triage/triage_engine.py
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "soar-automation"))
 
 import pytest
-from soar_automation.triage.triage_engine import TriageEngine
+from triage.triage_engine import TriageEngine, Priority
 
 
 @pytest.fixture
 def engine():
-    return TriageEngine(config={})
+    return TriageEngine()
 
 
-def make_enriched_ioc(verdict="CLEAN", ioc="8.8.8.8"):
+def make_alert(rule_level=10, mitre_tactic_ids=None):
     return {
-        "ioc": ioc,
-        "ioc_type": "ip",
-        "verdict": {"verdict": verdict, "confidence": 80, "score": 30},
+        "id": "test-alert-001",
+        "rule": {
+            "level": rule_level,
+            "description": "Test alert",
+            "mitre": {
+                "tactic_id": mitre_tactic_ids or [],
+            },
+        },
     }
 
 
 class TestTriageEngine:
-    def test_malicious_ioc_triggers_malicious(self, engine):
-        alert = {"severity": 10, "description": "Brute force", "src_ip": "185.220.101.45"}
-        result = engine.evaluate(alert=alert, enriched_iocs=[make_enriched_ioc("MALICIOUS")])
-        assert result["verdict"] == "MALICIOUS"
+    def test_triage_returns_result(self, engine):
+        result = engine.triage(alert=make_alert(), ioc_score=0.0)
+        assert result is not None
+        assert hasattr(result, "priority")
+        assert hasattr(result, "score")
+        assert hasattr(result, "rationale")
 
-    def test_clean_ioc_returns_clean(self, engine):
-        alert = {"severity": 3, "description": "Low severity event"}
-        result = engine.evaluate(alert=alert, enriched_iocs=[make_enriched_ioc("CLEAN")])
-        assert result["verdict"] in ["CLEAN", "SUSPICIOUS"]
+    def test_high_ioc_score_raises_priority(self, engine):
+        result = engine.triage(alert=make_alert(rule_level=10), ioc_score=95.0)
+        assert result.priority in [Priority.CRITICAL, Priority.HIGH]
 
-    def test_result_has_playbook(self, engine):
-        alert = {"severity": 10}
-        result = engine.evaluate(alert=alert, enriched_iocs=[make_enriched_ioc("MALICIOUS")])
-        assert "playbook" in result
+    def test_low_score_gives_low_priority(self, engine):
+        result = engine.triage(alert=make_alert(rule_level=1), ioc_score=0.0)
+        assert result.priority in [Priority.LOW, Priority.INFO, Priority.MEDIUM]
 
-    def test_empty_iocs_handled(self, engine):
-        alert = {"severity": 5, "description": "Test"}
-        result = engine.evaluate(alert=alert, enriched_iocs=[])
-        assert "verdict" in result
+    def test_mitre_high_impact_tactic_boosts_score(self, engine):
+        result_with = engine.triage(
+            alert=make_alert(rule_level=5, mitre_tactic_ids=["TA0006"]),
+            ioc_score=50.0
+        )
+        result_without = engine.triage(
+            alert=make_alert(rule_level=5, mitre_tactic_ids=[]),
+            ioc_score=50.0
+        )
+        assert result_with.score >= result_without.score
 
-    def test_confidence_in_result(self, engine):
-        alert = {"severity": 8}
-        result = engine.evaluate(alert=alert, enriched_iocs=[make_enriched_ioc("SUSPICIOUS")])
-        assert "confidence" in result
+    def test_rationale_is_list(self, engine):
+        result = engine.triage(alert=make_alert(), ioc_score=30.0)
+        assert isinstance(result.rationale, list)
+        assert len(result.rationale) > 0
+
+    def test_playbook_recommended_for_malicious_ip(self, engine):
+        alert = make_alert(rule_level=12)
+        alert["ioc_verdict"] = "MALICIOUS"
+        alert["ioc_type"] = "ip"
+        result = engine.triage(alert=alert, ioc_score=90.0)
+        assert result.recommended_playbook is not None
